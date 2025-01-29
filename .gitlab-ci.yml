@@ -1,0 +1,32 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+before_script:
+  - docker info
+
+build:
+  stage: build
+  script:
+    - docker build -t my-node-app .
+    - docker tag my-node-app:latest my-node-app:${CI_COMMIT_SHORT_SHA}
+
+test:
+  stage: test
+  script:
+    - docker run -d --name my-node-app-test -p 3000:3000 my-node-app:${CI_COMMIT_SHORT_SHA}
+    - apk add --no-cache curl
+    - sleep 5 # รอให้เซิร์ฟเวอร์เริ่มทำงาน
+    - curl -s http://localhost:3000 | grep "Hello, Docker!"
+    - docker stop my-node-app-test
+    - docker rm my-node-app-test
